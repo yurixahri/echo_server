@@ -1,0 +1,26 @@
+ChatProtocol DEFINITIONS EXPLICIT TAGS ::= BEGIN
+
+    -- The "Wrapper" that can be any of our message types
+    ProtocolMessage ::= CHOICE {
+        chat      [0] ChatMessage,
+        system    [1] SystemStatus,
+        response  [2] Response
+    }
+
+    ChatMessage ::= SEQUENCE {
+        msg-id   INTEGER,
+        sender  UTF8String,
+        content UTF8String,
+        timestamp GeneralizedTime OPTIONAL -- We can choose to include a timestamp or not
+    }
+
+    SystemStatus ::= SEQUENCE {
+        cpu-load INTEGER,
+        uptime  INTEGER
+    }
+
+    Response ::= SEQUENCE {
+        status  INTEGER
+    }
+
+END
