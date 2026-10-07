@@ -3,16 +3,19 @@
 #include <QTcpSocket>
 #include <QDebug>
 #include "utils/asn1_parser.h"
+#include "functions/user.h"
 #include "db/db.h"
 
-int main(int argc, char *argv[])
-{
+QMap<QTcpSocket*, client_state_t> client_state_map;
+QSqlDatabase db;
+struct asn1_def def;
+
+int main(int argc, char *argv[]) {
     QCoreApplication a(argc, argv);
 
-    struct asn1_def def;
     int ret;
-
-    ret = asn1_client_init(def, "D:/FILE/qt/echo_test_client/ChatProtocol.asn");
+    QString ans1_path = QCoreApplication::applicationDirPath()+"/ChatProtocol.asn";
+    ret = asn1_client_init(def, ans1_path);
     if (ret != ASN1_SUCCESS) {
         printf("Failed to load ASN.1 definitions!\n");
         return 1;
@@ -23,31 +26,26 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    def.on(ASN1_EVENT::CLIENT_CHECK_ID, check_user_id);
+    def.on(ASN1_EVENT::NEW_USER_PROOF, check_new_user_proof);
+
     QTcpServer server;
 
     QObject::connect(&server, &QTcpServer::newConnection, [&server, &def]() {
         while (server.hasPendingConnections()) {
             QTcpSocket *client_socket = server.nextPendingConnection();
+            if (!client_socket) return;
+            client_state_map.insert(client_socket, client_state_t{});
 
-            // Performance optimization for fast messaging
             client_socket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
-            qDebug() << "New incoming plain TCP connection from Nginx / Client:" << client_socket->peerAddress().toString();
 
-            // Direct mapping of your exact read function to the socket event
             QObject::connect(client_socket, &QTcpSocket::readyRead, [client_socket, &def]() {
                 asn1_server_read_response(client_socket, def);
-
-                int ret;
-                asn1_node element = NULL;
-                ret = asn1_create_element(def.definitions, "ChatProtocol.ProtocolMessage", &element);
-                asn1_write_value(element, "", "response", 1);
-                asn1_write_unsigned64(element, "response.status", 200);
-                asn1_server_send_packet(client_socket, element);
             });
 
-            // Cleanup when the connection ends
             QObject::connect(client_socket, &QTcpSocket::disconnected, [client_socket]() {
-                qDebug() << "Client disconnected.";
+                qDebug() << "client_socket disconnected.";
+                client_state_map.remove(client_socket);
                 client_socket->deleteLater();
             });
         }

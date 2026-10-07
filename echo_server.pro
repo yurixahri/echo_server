@@ -7,29 +7,29 @@ CONFIG += c++20 cmdline
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 QMAKE_LIBS += -ltasn1 -lz
 
-SOURCE_DIR = $$quote($$PWD/sql)
+SOURCE_SQL_DIR = $$PWD/sql
+SOURCE_ASN1_DEF = $$PWD/ChatProtocol.asn
 CONFIG(debug, debug|release) {
-    # Path for Debug mode
-    DEST_DIR = $$OUT_PWD/debug/sql
+    DEST_SQL_DIR = $$OUT_PWD/debug/sql
+    DEST_DIR = $$OUT_PWD/debug
 } else {
-    # Path for Release mode
-    DEST_DIR = $$OUT_PWD/release/sql
+    DEST_SQL_DIR = $$OUT_PWD/release/sql
+    DEST_DIR = $$OUT_PWD/release
 }
 
 win32 {
-    SOURCE_DIR ~= s,/,\\,g
-    DEST_DIR   ~= s,/,\\,g
+    SOURCE_SQL_DIR ~= s,/,\\,g
+    DEST_SQL_DIR   ~= s,/,\\,g
+    DEST_DIR ~= s,/,\\,g
+    SOURCE_ASN1_DEF ~= s,/,\\,g
 }
 
-win32 {
-    copy.commands = xcopy /s /q /y /i $$quote($$SOURCE_DIR) $$quote($$DEST_DIR)
-} else {
-    copy.commands = $(MKDIR) $$quote($$DEST_DIR) && $(COPY_DIR) $$quote($$SOURCE_DIR) $$quote($$DEST_DIR)
-}
 
-copy.depends = $(first)
-QMAKE_EXTRA_TARGETS += copy
-PRE_TARGETDEPS += copy
+copy_sql.commands = $(COPY_DIR) $$SOURCE_SQL_DIR $$DEST_SQL_DIR
+copy_asn1.commands = $(COPY_FILE) $$SOURCE_ASN1_DEF $$DEST_DIR
+
+QMAKE_EXTRA_TARGETS += copy_asn1 copy_sql
+POST_TARGETDEPS += copy_asn1 copy_sql
 
 SOURCES += \
         main.cpp
@@ -41,5 +41,8 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 HEADERS += \
     db/db.h \
+    common/types.h \
+    db/user.h \
+    functions/user.h \
     utils/asn1_parser.h \
-    utils/zlib_helper.h
+    utils/zlib_helper.h \

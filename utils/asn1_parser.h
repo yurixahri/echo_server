@@ -8,42 +8,51 @@
 #include <QMap>
 #include <libtasn1.h>
 #include <stdint.h>
+#include "common/types.h"
 
-enum ASN1_TAG{
-    CHAT = 0,
-    SYSTEM,
-    RESPONSE
-};
-
-struct asn1_def{
+struct asn1_def {
     asn1_node definitions;
-    QMap<uint16_t, std::function<void(asn1_node)>> dispatch_table;
+    QMap<uint16_t, std::function<void(QTcpSocket*, asn1_node)>> dispatch_table;
 
-    void on(uint16_t tag, std::function<void(asn1_node)> f){
+    void on(uint16_t tag, std::function<void(QTcpSocket*, asn1_node)> f){
         dispatch_table[tag] = f;
     }
 };
 
-QString asn1_read_string(asn1_node &root, const char *name) {
+extern struct asn1_def def;
+
+QString asn1_read_string(asn1_node root, const char *name) {
     int len = 0;
-    // Step 1: Get the required length
     int ret = asn1_read_value(root, name, NULL, &len);
 
-    // If element doesn't exist or is empty
     if (ret != ASN1_MEM_ERROR && ret != ASN1_SUCCESS) return QString();
     if (len <= 0) return QString("");
 
-    // Step 2: Allocate and Read
     QByteArray buffer(len, 0);
     ret = asn1_read_value(root, name, buffer.data(), &len);
 
-    if (ret == ASN1_SUCCESS) {
-        return QString::fromUtf8(buffer.data(), len);
-    }
-    return QString();
+    if (ret != ASN1_SUCCESS) return QString();
+
+    return QString::fromUtf8(buffer);
 }
 
-uint64_t asn1_read_int(asn1_node &root, const char *name) {
+QByteArray asn1_read_bytes(asn1_node root, const char *name){
+    int len = 0;
+    int ret = asn1_read_value(root, name, nullptr, &len);
+
+    if (ret != ASN1_MEM_ERROR && ret != ASN1_SUCCESS) return {};
+    if (len <= 0) return {};
+
+    QByteArray buffer(len, Qt::Uninitialized);
+    ret = asn1_read_value(root, name, buffer.data(), &len);
+
+    if (ret != ASN1_SUCCESS) return {};
+
+    buffer.resize(len);
+    return buffer;
+}
+
+uint64_t asn1_read_int(asn1_node root, const char *name) {
     int len = 0;
     int ret;
     ret = asn1_read_value(root, name, NULL, &len);
@@ -93,54 +102,46 @@ void asn1_write_signed64(asn1_node element, const char* name, int64_t value) {
     asn1_write_value(element, name, &be_val, 8);
 }
 
-int asn1_client_init(asn1_def &def, const char *asn_file) {
+int asn1_client_init(asn1_def &def, QString &asn_file) {
     char errorDesc[ASN1_MAX_ERROR_DESCRIPTION_SIZE];
-    // client.socket = new QTcpSocket();
     def.definitions = NULL;
-    int ret = asn1_parser2tree(asn_file, &def.definitions, errorDesc);
+    int ret = asn1_parser2tree(asn_file.toUtf8(), &def.definitions, errorDesc);
     if (ret != ASN1_SUCCESS) printf("%s\n", errorDesc);
     return ret;
 }
 
 void asn1_server_send_packet(QTcpSocket *client, asn1_node &element) {
     int ret;
-    // ret = asn1_create_element(client.definitions, "ChatProtocol.ProtocolMessage", &element);
-
     // DER Encoding
     char errorDesc[ASN1_MAX_ERROR_DESCRIPTION_SIZE];
     int der_len = 0;
 
     ret = asn1_der_coding(element, "", NULL, &der_len, errorDesc);
 
-    if (ret == ASN1_MEM_ERROR) {
-        void *der = malloc(der_len);
-        ret = asn1_der_coding(element, "", der, &der_len, errorDesc);
-        if (ret != ASN1_SUCCESS){
-            printf("%s\n", errorDesc);
-            return;
-        }
+    if (ret != ASN1_MEM_ERROR) {
+        qDebug() << "Failed getting DER size:" << errorDesc;
+        return;
     }
 
-    QByteArray asn1_data;
-    asn1_data.resize(der_len);
-    ret = asn1_der_coding(element, "", (unsigned char*)asn1_data.data(), &der_len, errorDesc);
+    QByteArray asn1_data(der_len, Qt::Uninitialized);
+    ret = asn1_der_coding(element, "", asn1_data.data(), &der_len, errorDesc);
     if (ret != ASN1_SUCCESS) {
         qDebug() << "DER encoding failed:" << errorDesc;
-    } else {
-        QByteArray packet;
-        quint16 len = (quint16)asn1_data.size();
-        char header[2];
-        header[0] = (len >> 8) & 0xFF;
-        header[1] = len & 0xFF;
-
-        packet.append(header, 2);      // Add the 2-byte header
-        packet.append(asn1_data);     // Add the raw uncompressed ASN.1 data
-
-        client->write(packet);
-        client->flush();
+        return;
     }
 
-    // asn1_delete_structure(&element);
+    asn1_data.resize(der_len);
+    QByteArray packet;
+    quint16 len = (quint16)asn1_data.size();
+    char header[2];
+    header[0] = (len >> 8) & 0xFF;
+    header[1] = len & 0xFF;
+
+    packet.append(header, 2);      // Add the 2-byte header
+    packet.append(asn1_data);     // Add the raw uncompressed ASN.1 data
+
+    client->write(packet);
+    client->flush();
 }
 
 void asn1_server_read_response(QTcpSocket *client, asn1_def &def) {
@@ -163,6 +164,12 @@ void asn1_server_read_response(QTcpSocket *client, asn1_def &def) {
         asn1_create_element(def.definitions, "ChatProtocol.ProtocolMessage", &element);
 
         int ret = asn1_der_decoding(&element, data.constData(), data.size(), errorDesc);
+        if (ret != ASN1_SUCCESS) {
+            qDebug() << "Decoding Error:" << errorDesc;
+            asn1_delete_structure(&element);
+            continue;
+        }
+
         unsigned long tag_value;
         unsigned char class_value;
         int len2;
@@ -171,12 +178,10 @@ void asn1_server_read_response(QTcpSocket *client, asn1_def &def) {
                                data.size(), &class_value, &len2, &tag_value);
 
         qDebug() << "Received";
-        asn1_print_structure(stdout, element, "", ASN1_PRINT_ALL);
-
         if (ret == ASN1_SUCCESS) {
             auto it = def.dispatch_table.find(tag_value);
             if (it != def.dispatch_table.end()){
-                it.value()(element); // Fire the handler lambda!
+                it.value()(client, element); // Fire the handler lambda!
             } else {
                 qDebug() << "No handler for tag:" << tag_value;
             }

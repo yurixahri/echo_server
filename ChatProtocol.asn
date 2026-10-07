@@ -1,26 +1,87 @@
 ChatProtocol DEFINITIONS EXPLICIT TAGS ::= BEGIN
 
-    -- The "Wrapper" that can be any of our message types
     ProtocolMessage ::= CHOICE {
-        chat      [0] ChatMessage,
-        system    [1] SystemStatus,
-        response  [2] Response
+        chat      					[0] ChatMessage,
+        system    					[1] SystemStatus,
+        response  					[2] Response,
+		client-check-id 			[3] ClientCheckID,
+		new-user-challenge 			[4] NewUserChallenge,
+		new-user-proof	 			[5] NewUserProof,
+		response-user-check-id		[6] ResponseUserCheckID,
+		member_list					[7] MemberList,
+		member_detail				[8] MemberDetail,
+		room_list					[9] RoomList
+		
     }
 
     ChatMessage ::= SEQUENCE {
-        msg-id   INTEGER,
-        sender  UTF8String,
-        content UTF8String,
-        timestamp GeneralizedTime OPTIONAL -- We can choose to include a timestamp or not
+        msg-id   		INTEGER,
+        sender  		UTF8String,
+        content 		UTF8String,
+        timestamp 		INTEGER OPTIONAL -- We can choose to include a timestamp or not
     }
 
     SystemStatus ::= SEQUENCE {
-        cpu-load INTEGER,
-        uptime  INTEGER
+        cpu-load 		INTEGER,
+        uptime  		INTEGER
     }
 
     Response ::= SEQUENCE {
-        status  INTEGER
+        status  		INTEGER
     }
 
+	ClientCheckID ::= SEQUENCE {
+        uuid  			UTF8String,
+		name 			UTF8String
+    }
+	
+	NewUserChallenge ::= SEQUENCE {
+		uuid        	UTF8String,
+		challenge   	OCTET STRING,
+		difficulty  	INTEGER
+	}
+	
+	NewUserProof ::= SEQUENCE {
+		uuid        	UTF8String,
+		solution  		INTEGER
+	}
+
+	ResponseUserCheckID ::= SEQUENCE {
+		status  		BOOLEAN
+	}
+	
+	ChangedUserName ::= SEQUENCE {
+		id 				INTEGER,
+		name 			UTF8String
+	}
+	
+	MemberList ::= SEQUENCE OF SEQUENCE {
+		id      		INTEGER,
+		name    		UTF8String,
+		avatar  		UTF8String
+	}
+	
+	MemberInVoiceRoomList ::= SEQUENCE OF SEQUENCE {
+		id      		INTEGER,
+		name    		UTF8String,
+		avatar  		UTF8String,
+		is-mute 		BOOLEAN,
+		is-deaf 		BOOLEAN
+	}
+	
+	MemberDetail ::= SEQUENCE {
+		id          	INTEGER,
+		name        	UTF8String,
+		avatar 			UTF8String,
+		created-at  	INTEGER,
+		last-seen   	INTEGER,
+		status      	INTEGER
+	}
+
+	RoomList ::= SEQUENCE OF SEQUENCE {
+		id          			INTEGER,
+		name        			UTF8String,
+		users-in-voice-room 	MemberInVoiceRoomList
+	}
+	
 END
