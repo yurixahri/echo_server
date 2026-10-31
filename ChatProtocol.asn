@@ -7,18 +7,46 @@ ChatProtocol DEFINITIONS EXPLICIT TAGS ::= BEGIN
 		client-check-id 			[3] ClientCheckID,
 		new-user-challenge 			[4] NewUserChallenge,
 		new-user-proof	 			[5] NewUserProof,
-		response-user-check-id		[6] ResponseUserCheckID,
+		claim-admin-privilege		[6] ClaimAdminPrivilege,
 		member_list					[7] MemberList,
 		member_detail				[8] MemberDetail,
-		room_list					[9] RoomList
-		
+		room_list					[9] RoomList,
+		create-room					[10] CreateRoom,
+		join-room					[11] JoinRoom,
+		update-server-settings		[12] UpdateServerSettings,
+		leave-room					[13] LeaveRoom,
+		file-upload-chunk			[14] FileUploadChunk,
+		file-download-req			[15] FileDownloadReq,
+		file-download-chunk			[16] FileDownloadChunk,
+		history-req					[17] HistoryReq,
+		delete-msg					[18] DeleteMsg,
+		get-my-info					[19] GetMyInfoReq,
+		my-info						[20] MyInfo,
+		avatar-upload-chunk			[21] AvatarUploadChunk,
+		get-roles-req				[22] GetRolesReq,
+		role-list					[23] RoleList,
+		create-role					[24] CreateRole,
+		update-role-perms			[25] UpdateRolePerms,
+		delete-role					[26] DeleteRole,
+		get-user-roles-req			[27] GetUserRolesReq,
+		user-roles-list				[28] UserRolesList,
+		assign-user-roles			[29] AssignUserRoles,
+		kick-user					[30] KickUser,
+		update-room					[31] UpdateRoom,
+		poke-user					[32] PokeUser,
+		get-members-req				[33] GetMembersReq,
+		get-member-detail-req		[34] GetMemberDetailReq
     }
 
     ChatMessage ::= SEQUENCE {
+        room-id 		INTEGER,
         msg-id   		INTEGER,
+        sender-id 		INTEGER,
         sender  		UTF8String,
+        sender-avatar 	UTF8String,
         content 		UTF8String,
-        timestamp 		INTEGER OPTIONAL -- We can choose to include a timestamp or not
+        msg-type 		INTEGER,
+        timestamp 		INTEGER
     }
 
     SystemStatus ::= SEQUENCE {
@@ -27,40 +55,45 @@ ChatProtocol DEFINITIONS EXPLICIT TAGS ::= BEGIN
     }
 
     Response ::= SEQUENCE {
-        status  		INTEGER
+		event			INTEGER,
+        status  		INTEGER,
+		message  		UTF8String OPTIONAL
     }
 
 	ClientCheckID ::= SEQUENCE {
         uuid  			UTF8String,
-		name 			UTF8String
+		name 			UTF8String,
+		password 		UTF8String OPTIONAL
     }
-	
+
 	NewUserChallenge ::= SEQUENCE {
 		uuid        	UTF8String,
 		challenge   	OCTET STRING,
 		difficulty  	INTEGER
 	}
-	
+
 	NewUserProof ::= SEQUENCE {
 		uuid        	UTF8String,
 		solution  		INTEGER
 	}
 
-	ResponseUserCheckID ::= SEQUENCE {
-		status  		BOOLEAN
+	ClaimAdminPrivilege ::= SEQUENCE {
+		key 			UTF8String
 	}
-	
+
 	ChangedUserName ::= SEQUENCE {
 		id 				INTEGER,
 		name 			UTF8String
 	}
-	
+
 	MemberList ::= SEQUENCE OF SEQUENCE {
 		id      		INTEGER,
 		name    		UTF8String,
-		avatar  		UTF8String
+		avatar  		UTF8String,
+		is-online 		BOOLEAN OPTIONAL,
+		is-admin 		BOOLEAN OPTIONAL
 	}
-	
+
 	MemberInVoiceRoomList ::= SEQUENCE OF SEQUENCE {
 		id      		INTEGER,
 		name    		UTF8String,
@@ -68,20 +101,172 @@ ChatProtocol DEFINITIONS EXPLICIT TAGS ::= BEGIN
 		is-mute 		BOOLEAN,
 		is-deaf 		BOOLEAN
 	}
-	
+
 	MemberDetail ::= SEQUENCE {
 		id          	INTEGER,
 		name        	UTF8String,
 		avatar 			UTF8String,
 		created-at  	INTEGER,
 		last-seen   	INTEGER,
-		status      	INTEGER
+		status      	INTEGER,
+		roles       	UTF8String OPTIONAL
 	}
 
 	RoomList ::= SEQUENCE OF SEQUENCE {
 		id          			INTEGER,
 		name        			UTF8String,
-		users-in-voice-room 	MemberInVoiceRoomList
+		users-in-voice-room 	MemberInVoiceRoomList OPTIONAL,
+		has-password 			BOOLEAN OPTIONAL,
+		needed-voice-join-power INTEGER OPTIONAL,
+		needed-chat-join-power 	INTEGER OPTIONAL,
+		needed-speak-power 		INTEGER OPTIONAL
 	}
-	
+
+	CreateRoom ::= SEQUENCE {
+		name        			UTF8String,
+		password    			UTF8String,
+		limit-clients 			INTEGER,
+		needed-voice-join-power INTEGER,
+		needed-chat-join-power 	INTEGER,
+		needed-speak-power 		INTEGER
+	}
+
+	JoinRoom ::= SEQUENCE {
+		room-id 				INTEGER,
+		password 				UTF8String OPTIONAL,
+		join-type 				INTEGER OPTIONAL
+	}
+
+	UpdateServerSettings ::= SEQUENCE {
+		server-name 			UTF8String,
+		server-password 		UTF8String
+	}
+
+	LeaveRoom ::= SEQUENCE {
+		room-id 				INTEGER,
+		leave-type 				INTEGER OPTIONAL
+	}
+
+	FileUploadChunk ::= SEQUENCE {
+		upload-id 				UTF8String,
+		room-id 				INTEGER,
+		file-name 				UTF8String,
+		total-size 				INTEGER,
+		offset 					INTEGER,
+		msg-type 				INTEGER,
+		data 					OCTET STRING
+	}
+
+	FileDownloadReq ::= SEQUENCE {
+		room-id 				INTEGER,
+		file-path 				UTF8String,
+		offset 					INTEGER
+	}
+
+	FileDownloadChunk ::= SEQUENCE {
+		room-id 				INTEGER,
+		file-path 				UTF8String,
+		total-size 				INTEGER,
+		offset 					INTEGER,
+		data 					OCTET STRING
+	}
+
+	HistoryReq ::= SEQUENCE {
+		room-id 				INTEGER,
+		before-id 				INTEGER,
+		limit 					INTEGER
+	}
+
+	DeleteMsg ::= SEQUENCE {
+		room-id 				INTEGER,
+		msg-id 					INTEGER
+	}
+
+	GetMyInfoReq ::= SEQUENCE {
+		dummy 					INTEGER OPTIONAL
+	}
+
+	MyInfo ::= SEQUENCE {
+		id 						INTEGER,
+		uuid 					UTF8String,
+		name 					UTF8String,
+		avatar 					UTF8String,
+		created-at 				INTEGER,
+		server-uptime 			INTEGER
+	}
+
+	AvatarUploadChunk ::= SEQUENCE {
+		upload-id 				UTF8String,
+		file-name 				UTF8String,
+		total-size 				INTEGER,
+		offset 					INTEGER,
+		data 					OCTET STRING
+	}
+
+	GetRolesReq ::= SEQUENCE {
+		dummy 					INTEGER OPTIONAL
+	}
+
+	RoleItem ::= SEQUENCE {
+		id 						INTEGER,
+		name 					UTF8String,
+		permissions 			UTF8String
+	}
+
+	RoleList ::= SEQUENCE OF RoleItem
+
+	CreateRole ::= SEQUENCE {
+		name 					UTF8String
+	}
+
+	UpdateRolePerms ::= SEQUENCE {
+		role-id 				INTEGER,
+		permissions 			UTF8String
+	}
+
+	DeleteRole ::= SEQUENCE {
+		role-id 				INTEGER
+	}
+
+	GetUserRolesReq ::= SEQUENCE {
+		user-id 				INTEGER
+	}
+
+	UserRolesList ::= SEQUENCE {
+		user-id 				INTEGER,
+		roles-json 				UTF8String
+	}
+
+	AssignUserRoles ::= SEQUENCE {
+		user-id 				INTEGER,
+		role-ids 				UTF8String
+	}
+
+	KickUser ::= SEQUENCE {
+		user-id 				INTEGER,
+		room-id 				INTEGER OPTIONAL
+	}
+
+	UpdateRoom ::= SEQUENCE {
+		room-id 				INTEGER,
+		name 					UTF8String,
+		password 				UTF8String,
+		needed-voice-join-power INTEGER,
+		needed-chat-join-power 	INTEGER,
+		needed-speak-power 		INTEGER
+	}
+
+	PokeUser ::= SEQUENCE {
+		target-user-id 			INTEGER,
+		message 				UTF8String OPTIONAL
+	}
+
+	GetMembersReq ::= SEQUENCE {
+		dummy 					INTEGER OPTIONAL
+	}
+
+	GetMemberDetailReq ::= SEQUENCE {
+		user-id 				INTEGER
+	}
+
 END

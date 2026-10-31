@@ -6,15 +6,18 @@ CREATE TABLE users (
     avatar_path     TEXT,
     created_at      INTEGER DEFAULT (unixepoch()),
 	last_seen       INTEGER DEFAULT (unixepoch()),
-    is_admin        BOOLEAN DEFAULT 0
+    is_admin        BOOLEAN DEFAULT 0,
     status          INTEGER DEFAULT 0
 );
 
 CREATE TABLE rooms (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,     
-    name            TEXT NOT NULL,
-    password        TEXT,                 
-    limit_clients   INTEGER DEFAULT 0
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                    TEXT NOT NULL,
+    password                TEXT,
+    limit_clients           INTEGER DEFAULT 0,
+    needed_voice_join_power INTEGER DEFAULT 0,
+    needed_chat_join_power  INTEGER DEFAULT 0,
+    needed_speak_power      INTEGER DEFAULT 0
 );
 
 CREATE TABLE permissions (
@@ -87,11 +90,11 @@ INSERT INTO permissions (id, name) VALUES
 	(1, 'u_can_create_rooms'),
 	(2, 'u_can_delete_rooms'),
 	(3, 'u_can_ban_users'),
-	(4, 'u_speak_power'),
-	(5, 'u_join_power'),
-	(6, 'channel_join_power'),
-	(7, 'channel_speak_power')
-ON CONFLICT DO UPDATE SET name = excluded.name;
+    (4, 'u_can_kick_users'),
+	(5, 'u_voice_join_power'),
+	(6, 'u_chat_join_power'),
+	(7, 'u_speak_power')
+ON CONFLICT(id) DO UPDATE SET name = excluded.name;
 
 
 -- INDEXES FOR SPEED

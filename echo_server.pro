@@ -40,9 +40,14 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 HEADERS += \
+    common/functions.h \
     db/db.h \
     common/types.h \
     db/user.h \
+    functions/file.h \
+    functions/role.h \
+    functions/room.h \
     functions/user.h \
+    functions/voice.h \
     utils/asn1_parser.h \
     utils/zlib_helper.h \
