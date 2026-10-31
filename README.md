@@ -106,11 +106,11 @@ serverPort = 7000
 [[proxies]]
 name = "echo_tcp_tls"
 type = "tcp"
-remotePort = 9069
+remotePort = 5556
 
 [proxies.plugin]
 type = "tls2raw"
-localAddr = "127.0.0.1:9070"
+localAddr = "127.0.0.1:5555"
 crtPath = "/path/to/yourdomain/fullchain.pem"
 keyPath = "/path/to/yourdomain/privkey.pem"
 
@@ -118,8 +118,8 @@ keyPath = "/path/to/yourdomain/privkey.pem"
 name = "echo_udp_voice"
 type = "udp"
 localIP = "127.0.0.1"
-localPort = 9070
-remotePort = 9069
+localPort = 5555
+remotePort = 5556
 
 ```
 Then run
