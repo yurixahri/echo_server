@@ -82,42 +82,50 @@ Upon the very first launch, the server generates an administrative claim token:
 ## Reverse proxy
 ### Windows
 
-Nginx on windows does not support udp, so instead use [GOST](https://gost.run/en/) (very lightweight, simple security tunnel written in golang).
-Assume your host port is 5556 and your app local port is 5555, your gost.yaml would be like:
-```yaml
-# Uncomment this if you don't want gost log to terminal
-# log:
-#  output: none
-services:
-  - name: echo-tcp-tls-in
-    addr: ":5556"
-    handler:
-      type: tcp
-    listener:
-      type: tls
-      tls:
-        certFile: "/path/to/yourdomain/fullchain.pem"
-        keyFile: "/path/to/yourdomain/privkey.pem"
-    forwarder:
-      nodes:
-        - name: target-tcp
-          addr: "127.0.0.1:5555"
+Nginx on windows does not support udp, so instead use [frp]([https://gost.run/en/](https://github.com/fatedier/frp)) (kind of a work around than official way to do, but it work).
+Assume your host port is 5556 and your app local port is 5555, your frps.toml and frpc.toml would be like:
+```toml
+# frps.toml
+bindPort = 7000
 
-  - name: echo-udp-raw-in
-    addr: ":5556"
-    handler:
-      type: udp
-    listener:
-      type: udp
-    forwarder:
-      nodes:
-        - name: target-udp
-          addr: "127.0.0.1:5555"
+[log]
+# Remove # to turn off log
+# to = "NUL"          # Windows (use "/dev/null" on Linux)
+# level = "error"     # Suppress info/debug
+```
+
+```
+# frpc.toml
+serverPort = 7000
+
+[log]
+# Remove # to turn off log
+# to = "NUL"          # Windows (use "/dev/null" on Linux)
+# level = "error"     # Suppress info/debug
+
+[[proxies]]
+name = "echo_tcp_tls"
+type = "tcp"
+remotePort = 9069
+
+[proxies.plugin]
+type = "tls2raw"
+localAddr = "127.0.0.1:9070"
+crtPath = "/path/to/yourdomain/fullchain.pem"
+keyPath = "/path/to/yourdomain/privkey.pem"
+
+[[proxies]]
+name = "echo_udp_voice"
+type = "udp"
+localIP = "127.0.0.1"
+localPort = 9070
+remotePort = 9069
 
 ```
 Then run
 ```
-gost -C gost.yaml
+frps.exe -c frps.toml
+frpc.exe -c frpc.toml
 ```
 
 ### Linux
