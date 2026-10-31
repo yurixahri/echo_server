@@ -94,7 +94,7 @@ bindPort = 7000
 # level = "error"     # Suppress info/debug
 ```
 
-```
+```toml
 # frpc.toml
 serverPort = 7000
 
