@@ -2,7 +2,6 @@
 
 Headless, stateful, and server-authoritative backend daemon for the Echo voice and chat platform. Built with C++20, Qt 6 (Network, Core, Sql), and SQLite in WAL mode.
 
----
 
 ## Quick Review
 
@@ -15,7 +14,7 @@ Headless, stateful, and server-authoritative backend daemon for the Echo voice a
 - **Proof-of-Work Registration:** Client UUID allocations are gated by dynamic SHA-256 challenges to mitigate spam.
 - **Automated Database Migrations:** SQLite schema initializes and migrates automatically without data loss.
 
----
+
 
 ## Building from Source
 
@@ -47,7 +46,7 @@ mingw32-make -j$(nproc)
 The resulting binary will be output to `release/echo_server` (or `release/echo_server.exe`).
 Only support Windows for now.
 
----
+
 
 ## Usage
 
@@ -79,8 +78,83 @@ Upon the very first launch, the server generates an administrative claim token:
 2. Open the server menu (`⋯`) in the top header and select **Claim Admin**.
 3. Paste the privilege key to grant permanent server administrator permissions to your account.
 
----
 
+## Reverse proxy
+### Windows
+
+Nginx on windows does not support udp, so instead use [GOST](https://gost.run/en/) (very lightweight, simple security tunnel written in golang).
+Assume your host port is 5556 and your app local port is 5555, your gost.yaml would be like:
+```yaml
+# Uncomment this if you don't want gost log to terminal
+# log:
+#  output: none
+services:
+  - name: echo-tcp-tls-in
+    addr: ":5556"
+    handler:
+      type: tcp
+    listener:
+      type: tls
+      tls:
+        certFile: "/path/to/yourdomain/fullchain.pem"
+        keyFile: "/path/to/yourdomain/privkey.pem"
+    forwarder:
+      nodes:
+        - name: target-tcp
+          addr: "127.0.0.1:5555"
+
+  - name: echo-udp-raw-in
+    addr: ":5556"
+    handler:
+      type: udp
+    listener:
+      type: udp
+    forwarder:
+      nodes:
+        - name: target-udp
+          addr: "127.0.0.1:5555"
+
+```
+Then run
+```
+gost -C gost.yaml
+```
+
+### Linux
+Since I have not compiled in linux yet, I can't test it out, but let assume it works, use NginX
+```
+stream {
+    upstream echo_backend_tcp {
+        server 127.0.0.1:5555;
+    }
+
+    upstream echo_backend_udp {
+        server 127.0.0.1:5555;
+    }
+
+    server {
+        listen 5556 ssl;
+        proxy_pass echo_backend_tcp;
+
+        ssl_certificate     /path/to/yourdomain/fullchain.pem;
+        ssl_certificate_key /path/to/yourdomain/privkey.pem;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+        ssl_session_cache   shared:SSL_STREAM:10m;
+        ssl_session_timeout 4h;
+
+        proxy_timeout         86400s;
+        proxy_connect_timeout 5s;
+    }
+
+    server {
+        listen 5556 udp;
+        proxy_pass echo_backend_udp;
+        proxy_timeout   86400s;
+        proxy_responses 0;
+    }
+}
+```
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).
