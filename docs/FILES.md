@@ -4,6 +4,9 @@
 
 `echo_server` is a headless, lightweight C++20 and Qt 6.11 server backend managing stateful client TCP sessions, SQLite database storage in WAL mode, and real-time UDP voice routing.
 
+For the complete TCP/UDP API, wire fields, server handler behavior, and event
+diagrams, see [API_REFERENCE.md](API_REFERENCE.md).
+
 ---
 
 ## 2. Core Entry
@@ -68,7 +71,7 @@
 - **[functions/file.h](../functions/file.h)**
   - Manages chunked file uploads and downloads.
   - Verifies magic byte signatures for avatar uploads (PNG, JPEG, GIF, BMP, WEBP, AVIF).
-  - Stores room attachments in `files/<room_id>/` and user avatars in `files/avt/`.
+  - Stores room attachments in `files/room/<room_id>/` and user avatars in `files/avt/`.
   - When user replaces their avatar, automatically purges the old avatar file from disk.
 
 - **[functions/role.h](../functions/role.h)**

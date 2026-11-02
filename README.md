@@ -163,6 +163,14 @@ stream {
     }
 }
 ```
+## Documentation
+
+- [Full API and protocol reference](docs/API_REFERENCE.md)
+- [Server architecture and file index](docs/FILES.md)
+- [Protocol overview](docs/PROTOCOL.md)
+
+---
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).
